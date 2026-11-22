@@ -119,3 +119,4 @@ The code, seed and settings are the same on both, so the numbers should be close
 - *Job rejected because of the account:* uncomment the `--account` line in `hprc_job.slurm`; `myproject` shows your account number.
 - *Waiting a long time for A100s:* change `--gres=gpu:a100:1` to `gpu:t4:1` or `gpu:rtx:1` in `hprc_job.slurm`.
 - *`No such file ... cifar-10-batches-py`:* step 3 was not run inside `Fall26ML-HW4/ResNet`.
+- *A run stopped early (crash or time limit):* resubmit just that task, e.g. `sbatch --array=2 hprc_job.slurm`. It resumes from its last 10-epoch checkpoint (`train_state.pt`) instead of starting over.

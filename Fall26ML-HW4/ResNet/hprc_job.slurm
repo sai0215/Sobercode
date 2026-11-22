@@ -39,7 +39,9 @@ nvidia-smi --query-gpu=name,memory.total --format=csv
 # Results go to runs_hprc/ so they never mix with the local (Apple-GPU) runs in runs/.
 # tr turns the per-batch carriage-return progress bar into newlines; grep drops those lines.
 # EPOCHS can be overridden for a quick smoke test:  EPOCHS=1 sbatch --array=0 hprc_job.slurm
-python -u main.py --variant "$VARIANT" --lr "$LR" --epochs "${EPOCHS:-100}" \
+# --resume: if this run was killed earlier (crash / time limit), just resubmit the same task id
+# and it continues from the last 10-epoch checkpoint (runs_hprc/<run>/train_state.pt).
+python -u main.py --variant "$VARIANT" --lr "$LR" --epochs "${EPOCHS:-100}" --resume \
   --modeldir "$PWD/runs_hprc/${VARIANT}_lr${LR}" 2>&1 \
   | stdbuf -oL tr '\r' '\n' | grep --line-buffered -v '^Batch'
 

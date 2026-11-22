@@ -29,6 +29,8 @@ def configure():
                         default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                              "data", "cifar-10-batches-py"))
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--resume", action="store_true",
+                        help="continue from <modeldir>/train_state.pt if it exists")
     ### YOUR CODE HERE
     config = parser.parse_args()
     if config.modeldir is None:

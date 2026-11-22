@@ -58,7 +58,8 @@ class Cifar(nn.Module):
         num_batches = num_samples // self.config.batch_size
 
         print('### Training... ###')
-        for epoch in range(1, max_epoch+1):
+        start_epoch = self.try_resume() if getattr(self.config, "resume", False) else 0
+        for epoch in range(start_epoch + 1, max_epoch + 1):
             start_time = time.time()
             # Shuffle
             shuffle_index = np.random.permutation(num_samples)
@@ -119,6 +120,7 @@ class Cifar(nn.Module):
 
             if epoch % self.config.save_interval == 0 or epoch == max_epoch:
                 self.save(epoch)
+                self.save_state(epoch)
 
         self.save_history()
         ### YOUR CODE HERE
@@ -171,6 +173,38 @@ class Cifar(nn.Module):
         self.network.load_state_dict(ckpt, strict=True)
         self.network.to(DEVICE)
         print("Restored model parameters from {}".format(checkpoint_name))
+
+    # ---- full training state, so a crashed / time-limited run can continue (--resume) ----
+    def _state_path(self):
+        return os.path.join(self.config.modeldir, 'train_state.pt')
+
+    def save_state(self, epoch):
+        os.makedirs(self.config.modeldir, exist_ok=True)
+        tmp = self._state_path() + '.tmp'
+        torch.save({"epoch": epoch,
+                    "network": self.network.state_dict(),
+                    "optimizer": self.optimizer.state_dict(),
+                    "scheduler": self.scheduler.state_dict(),
+                    "history": self.history,
+                    "np_rng": np.random.get_state(),
+                    "torch_rng": torch.get_rng_state()}, tmp)
+        os.replace(tmp, self._state_path())  # atomic: a crash never leaves a half-written file
+
+    def try_resume(self):
+        """Load train_state.pt if present; return the last completed epoch (0 = fresh start)."""
+        path = self._state_path()
+        if not os.path.exists(path):
+            return 0
+        s = torch.load(path, map_location="cpu", weights_only=False)
+        self.network.load_state_dict(s["network"])
+        self.network.to(DEVICE)
+        self.optimizer.load_state_dict(s["optimizer"])
+        self.scheduler.load_state_dict(s["scheduler"])
+        self.history = s["history"]
+        np.random.set_state(s["np_rng"])
+        torch.set_rng_state(s["torch_rng"])
+        print("Resumed from {} (epoch {})".format(path, s["epoch"]), flush=True)
+        return s["epoch"]
 
     def save_history(self):
         os.makedirs(self.config.modeldir, exist_ok=True)
